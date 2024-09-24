@@ -16,6 +16,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoIterable;
 import static com.mongodb.client.model.Filters.eq;
+import static com.mongodb.client.model.Indexes.descending;
 
 @Component
 public class Dao {
@@ -45,11 +46,11 @@ public class Dao {
         }
     }
 
-    public Document findOne(ObjectId id , String collectionName) {
+    public Document findOne(ObjectId id , Bson projection , String collectionName) {
         try {
             MongoCollection<Document> collection = this.mongoConnect.getDatabase().getCollection(collectionName);
 
-            MongoCursor<Document> result = collection.find(eq("_id", id)).iterator();
+            MongoCursor<Document> result = collection.find(eq("_id", id)).projection(projection).iterator();
 
             if (!result.hasNext()) {
                 throw new RuntimeException("No data found");
@@ -68,7 +69,7 @@ public class Dao {
 
             MongoCollection<Document> collection = this.mongoConnect.getDatabase().getCollection(collectionName);
 
-            FindIterable<Document> result = collection.find(filter).projection(projection);
+            FindIterable<Document> result = collection.find(filter).projection(projection).sort(descending("date"));
 
             result.into(documentList);
             return documentList;
@@ -182,7 +183,7 @@ public class Dao {
         }
     }
 
-    public Boolean deleteOneByQuery(Document filter , String collectionName) {
+    public Boolean deleteOneByQuery(Bson filter , String collectionName) {
         try {
             MongoCollection<Document> collection = this.mongoConnect.getDatabase().getCollection(collectionName);
             collection.deleteOne(filter);
@@ -192,7 +193,7 @@ public class Dao {
         }
     }
 
-    public Boolean deleteMany(Document filter,String collectionName) {
+    public Boolean deleteMany(Bson filter,String collectionName) {
         try {
             MongoCollection<Document> collection = this.mongoConnect.getDatabase().getCollection(collectionName);
             collection.deleteMany(filter);
@@ -203,7 +204,7 @@ public class Dao {
         }
     }
 
-    public List<Document> aggregate(List<Document> pipeline,String collectionName) {
+    public List<Document> aggregate(List<Bson> pipeline,String collectionName) {
         try {
             MongoCollection<Document> collection = this.mongoConnect.getDatabase().getCollection(collectionName);
             AggregateIterable<Document> result = collection.aggregate(pipeline);

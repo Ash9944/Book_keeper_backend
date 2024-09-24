@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,10 +30,15 @@ public class UserController {
 
     @PostMapping("/add/custom/friend/{userId}")
     public Boolean addCustomUser(@RequestBody LinkedHashMap<String, String> userDetails , @PathVariable String userId) {
-        if(!userDetails.containsKey("name") || !userDetails.containsKey("id")) {
+        if(!userDetails.containsKey("name") || !userDetails.containsKey("phoneNumber")) {
             return false;
         }
-        return services.addCustomUser(userId ,userDetails.get("name") , userDetails.get("id"));
+        return services.addCustomUser(userId ,userDetails.get("name") , userDetails.get("phoneNumber"));
+    }
+
+    @DeleteMapping("/remove/custom/friend/{userId}/{friendId}")
+    public Boolean removeCustomUser(@PathVariable String userId , @PathVariable String friendId) {
+        return services.removeCustomUser(userId ,friendId);
     }
 
     @PostMapping("/accept/friend")
@@ -53,9 +59,13 @@ public class UserController {
         return services.getRequests(userId);
     }
 
-    @PostMapping("/remove/friend/{userId}/{friendId}")
-    public Boolean removeFriend(@PathVariable String userId , String friendId) {
-        return services.removeFriend(userId , friendId);
+    @DeleteMapping("/remove/friend")
+    public Boolean removeFriend(@RequestBody LinkedHashMap<String, String> details) {
+        if(!details.containsKey("userId") || !details.containsKey("friendId")) {
+            return false;
+        }
+        return services.removeFriend(details.get("userId") , details.get("friendId"));
+        // return services.removeFriend(userId , friendId);
     }
 
     @GetMapping("/user/{userId}")

@@ -13,6 +13,9 @@ import com.backend.bookKeeper.Model.Dao;
 import com.backend.bookKeeper.Model.FriendBook;
 import com.backend.bookKeeper.enums.FriendBookStatus;
 import com.mongodb.client.model.Filters;
+import static com.mongodb.client.model.Projections.excludeId;
+import static com.mongodb.client.model.Projections.fields;
+import static com.mongodb.client.model.Projections.include;
 
 @Service
 public class UserServices {
@@ -47,8 +50,7 @@ public class UserServices {
 
     public Document getUserDetails(String userId) {
         Bson filter = Filters.and(
-                Filters.eq("userId", userId)
-                );
+                Filters.eq("userId", userId));
         Bson projection = Filters.empty();
         List<Document> response = dao.findByQuery(filter, projection, "users");
         int responseLength = response.size();
@@ -66,9 +68,10 @@ public class UserServices {
     public Boolean addFriend(String userId, String friendId) {
         ObjectId friendObjectId = new ObjectId(friendId);
         ObjectId userObjectId = new ObjectId(userId);
+        Bson findOneProjection = Filters.empty();
 
-        Document friend = dao.findOne(friendObjectId, "users");
-        Document user = dao.findOne(userObjectId, "users");
+        Document friend = dao.findOne(friendObjectId, findOneProjection, "users");
+        Document user = dao.findOne(userObjectId, findOneProjection, "users");
 
         Date currentDate = new Date();
         FriendBook friendBook = new FriendBook(
@@ -85,9 +88,10 @@ public class UserServices {
     public Boolean acceptFriend(String userId, String friendId) {
         ObjectId friendObjectId = new ObjectId(friendId);
         ObjectId userObjectId = new ObjectId(userId);
+        Bson findOneProjection = Filters.empty();
 
-        Document friend = dao.findOne(friendObjectId, "users");
-        Document user = dao.findOne(userObjectId, "users");
+        Document friend = dao.findOne(friendObjectId, findOneProjection, "users");
+        Document user = dao.findOne(userObjectId, findOneProjection, "users");
 
         Document filter = new Document("friendId", userObjectId).append("requesterId", friendObjectId);
         Document update = new Document("status", FriendBookStatus.ACCEPTED);
@@ -108,9 +112,10 @@ public class UserServices {
     public Boolean rejectFriend(String userId, String friendId) {
         ObjectId friendObjectId = new ObjectId(friendId);
         ObjectId userObjectId = new ObjectId(userId);
+        Bson findOneProjection = Filters.empty();
 
-        Document friend = dao.findOne(friendObjectId, "users");
-        Document user = dao.findOne(userObjectId, "users");
+        Document friend = dao.findOne(friendObjectId, findOneProjection, "users");
+        Document user = dao.findOne(userObjectId, findOneProjection, "users");
 
         int isFriend = friend.size();
         int isUser = user.size();
@@ -129,23 +134,27 @@ public class UserServices {
 
     public List<Document> getFriends(String userId) {
         ObjectId userObjectId = new ObjectId(userId);
+        Bson findOneProjection = fields(include("customUsers.name", "customUsers._id" , "customUsers.isCustomUser") , excludeId());
+        Document user = dao.findOne(userObjectId, findOneProjection, "users");
 
-        dao.findOne(userObjectId, "users");
         // Bson filter = new Document("requestedId", userObjectId).append("status",
         // FriendBookStatus.ACCEPTED);
         Bson friendsIdQuery = Filters.and(
                 Filters.eq("requesterId", userObjectId),
-                Filters.eq("status", FriendBookStatus.ACCEPTED)
-                );
+                Filters.eq("status", FriendBookStatus.ACCEPTED));
 
         List<ObjectId> friendsId = dao.distinctObjectId("friendId", friendsIdQuery, "friendsBook");
 
         Bson userFilter = Filters.and(
                 Filters.ne("_id", userObjectId),
-                Filters.in("_id", friendsId)
-        );
-        Bson projection = Filters.empty();
+                Filters.in("_id", friendsId));
+        Bson projection = fields(include("name"));
         List<Document> response = dao.findByQuery(userFilter, projection, "users");
+        var customUsers = user.getList("customUsers", Document.class);
+        if (customUsers != null) {
+            response.addAll(customUsers);
+        }
+
         int responseLength = response.size();
 
         for (int i = 0; i < responseLength; i++) {
@@ -155,11 +164,12 @@ public class UserServices {
         }
 
         return response;
-    } 
+    }
 
     public List<Document> getRequests(String userId) {
         ObjectId userObjectId = new ObjectId(userId);
-        dao.findOne(userObjectId, "users");
+        Bson findOneProjection = Filters.empty();
+        dao.findOne(userObjectId, findOneProjection, "users");
         // Bson filter = new Document("requestedId", userObjectId).append("status",
         // FriendBookStatus.ACCEPTED);
         Bson filter = Filters.and(
@@ -185,37 +195,59 @@ public class UserServices {
     public Boolean removeFriend(String userId, String friendId) {
         ObjectId friendObjectId = new ObjectId(friendId);
         ObjectId userObjectId = new ObjectId(userId);
+        Bson findOneProjection = Filters.empty();
 
-        Document friend = dao.findOne(friendObjectId, "users");
-        Document user = dao.findOne(userObjectId, "users");
+        dao.findOne(friendObjectId, findOneProjection, "users");
+        dao.findOne(userObjectId, findOneProjection, "users");
 
-        int isFriend = friend.size();
-        int isUser = user.size();
-        if (isFriend == 0 || isUser == 0) {
-            return false;
-        }
+        Bson filter = Filters.and(
+                Filters.or(Filters.eq("requesterId", userObjectId), Filters.eq("friendId", userObjectId)),
+                Filters.or(Filters.eq("requesterId", friendObjectId), Filters.eq("friendId", friendObjectId)));
 
-        Document filter = new Document("friendId", friendObjectId).append("requestedId", userObjectId);
-        return dao.deleteOneByQuery(filter, "friendsBook");
+        return dao.deleteMany(filter, "friendsBook");
     }
 
-    public Boolean addCustomUser (String userId ,String name, String id) {
+    public Boolean addCustomUser(String userId, String name, String phoneNumber) {
         ObjectId userObjectId = new ObjectId(userId);
-        Document user = dao.findOne(userObjectId, "users");
+        Bson findOneProjection = Filters.empty();
+        Document user = dao.findOne(userObjectId, findOneProjection, "users");
+        var customUsers = user.getList("customUsers", Document.class);
 
-        Document customUser = new Document();
-        customUser.put("name", name);
-        customUser.put("id", id);
+        if (customUsers != null) {
+            int responseLength = customUsers.size();
 
-        // Date currentDate = new Date();
-        // FriendBook friendBook = new FriendBook(
-        //         id,
-        //         user.getObjectId("_id"),
-        //         FriendBookStatus.ACCEPTED,
-        //         currentDate);
+            for (int i = 0; i < responseLength; i++) {
+                Document item = customUsers.get(i);
+                String userName = item.getString("name");
+                if (userName.toUpperCase().equals(name.toUpperCase())) {
+                    return false;
+                }
+            }
+        }
 
-        
+        Document customUser = new Document("name", name.toUpperCase())
+                .append("phoneNumber", phoneNumber)
+                .append("_id", new ObjectId())
+                .append("isCustomUser", true);
+
+        Document updateFilter = new Document("_id", userObjectId);
+        Document updateObject = new Document("customUsers", customUser);
+
+        dao.updateOneByQuery(updateFilter, "PUSH", updateObject, "users");
         return true;
     }
 
+    public Boolean removeCustomUser(String userId, String friendId) {
+        ObjectId userObjectId = new ObjectId(userId);
+        ObjectId friendObjectId = new ObjectId(friendId);
+
+        Document filter = new Document("_id", userObjectId);
+
+        // Define the pull update to remove the object where 'name' is 'gaming'
+        Document pullObject = new Document("_id", friendObjectId);
+        Document update = new Document("customUsers", pullObject);
+        dao.updateOneByQuery(filter, "PULL", update, "users");
+
+        return true;
+    }
 }

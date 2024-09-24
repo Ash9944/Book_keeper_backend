@@ -1,9 +1,11 @@
 package com.backend.bookKeeper.Model;
 
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
-import com.mongodb.lang.NonNull;
+import org.bson.Document;
 
 import lombok.Data;
 import lombok.Getter;
@@ -16,14 +18,23 @@ import lombok.Setter;
 @RequiredArgsConstructor
 public class User {
 
-    @NonNull
     private String userId;
-    @NonNull
     private String password;
-    @NonNull
     private String name;
     private String email;
     private long phoneNumber;
+    private Date since;
+    private List<Document> customUsers;
+
+    public User(String userId, String password, String name, String email, long phoneNumber) {
+        this.userId = userId;
+        this.password = password;
+        this.name = name;
+        this.email = email;
+        this.phoneNumber = phoneNumber;
+        this.since = new Date();
+        this.customUsers = new ArrayList<>();
+    }
 
     public HashMap<String, Object> convertToMap() {
         return new HashMap<String, Object>() {
@@ -32,7 +43,10 @@ public class User {
                 put("password", password);
                 put("name", name);
                 put("email", email);
-                put("phoneNumber", phoneNumber);            }
+                put("phoneNumber", phoneNumber);  
+                put("since", since);  
+                put("customUsers", customUsers);           
+            }
         };
     }
 }
