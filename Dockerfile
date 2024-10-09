@@ -1,3 +1,8 @@
+FROM maven:3.8.6-openjdk-17 AS build
+WORKDIR /backEnd
+COPY . .
+RUN mvn clean package -DskipTests
+
 # Use an official OpenJDK runtime as a parent image
 FROM openjdk:17-jdk-alpine
 
