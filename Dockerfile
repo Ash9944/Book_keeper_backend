@@ -1,19 +1,15 @@
-FROM maven:3.8.6-openjdk-17 AS build
+# Stage 1: Build the application using Maven
+FROM maven:3.8.8-eclipse-temurin-17 AS build
 WORKDIR /backEnd
 COPY . .
 RUN mvn clean package -DskipTests
 
-# Use an official OpenJDK runtime as a parent image
-FROM openjdk:17-jdk-alpine
+# Print the contents of the /app/target directory to debug
+RUN ls -l /backEnd/target
 
-# Set the working directory in the container
+# Stage 2: Run the application using OpenJDK
+FROM eclipse-temurin:17-jdk-alpine
 WORKDIR /backEnd
-
-# Copy the project’s jar file into the container
-COPY target/bookKeeper-0.0.1-SNAPSHOT.jar /backEnd/bookKeeper-0.0.1-SNAPSHOT.jar
-
-# Expose the application port (default Spring Boot port is 8080)
+COPY --from=build /backEnd/target/*.jar /backEnd/bookKeeper-0.0.1-SNAPSHOT.jar
 EXPOSE 8080
-
-# Command to run the app
-ENTRYPOINT ["java", "-jar", "bookKeeper-0.0.1-SNAPSHOT.jar"]
+ENTRYPOINT ["java", "-jar", "/backEnd/bookKeeper-0.0.1-SNAPSHOT.jar"]
